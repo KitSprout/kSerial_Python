@@ -1,4 +1,3 @@
-
 from kSerial import kSerial
 
 ks = kSerial('COM16', 115200)

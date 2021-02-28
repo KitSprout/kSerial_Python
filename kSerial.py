@@ -273,7 +273,7 @@ class kSerial:
     # pkinfo(4) : parameter 2
     # pkinfo(5) : checksum
     # pkinfo(6) : data length
-    def continuous(self):
+    def continuous(self, record = False):
         pkinfo = ([],)
         pkdata = ([],)
         pkcount = 0
@@ -310,6 +310,85 @@ class kSerial:
         pkdata = pk
         return pkinfo, pkdata, pkcount
 
+    # TODO
+    # pkinfo, pkdata, pkcount = ks.data(mode)
+    # mode = get, reset
+
+    # TODO
+    # pkinfo, pkdata, pkcount = ks.observer(param, ktype, ack, second)
+
+    # % [freq, tims] = s.packetObserver();        ->  calculate freq and run time
+    # function varargout = packetObserver( s, varargin )
+    #     s.tick.count = s.tick.count + s.recv.count;
+    #     if (s.tick.timeunit == 0) || (s.tick.timeunit >= size(s.ks.data, 1))
+    #         % use system clock to calculate
+    #         caltype = 'system';
+    #         dt = toc;
+    #         freq = s.tick.count / dt;
+    #         tims = s.tick.time + dt;
+    #         if dt >= s.tick.period
+    #             s.tick.count = 0;
+    #             s.tick.time = tims;
+    #             if s.tick.state > (1.5 / s.tick.period)
+    #                 s.tick.freq = (1 - s.tick.alpha) * s.tick.freq + s.tick.alpha * freq;
+    #             else
+    #                 s.tick.freq = freq;
+    #                 s.tick.state = s.tick.state + 1;
+    #             end
+    #             % reset time tick
+    #             tic;
+    #         end
+    #     else
+    #         % use packet sec/msc to calculate
+    #         caltype = 'packet';
+    #         tims = s.ks.data(s.tick.timeindex(1), end) + s.ks.data(s.tick.timeindex(2), end) * s.tick.timeunit;
+    #         dt = tims - s.tick.time;
+    #         freq = s.tick.count / dt;
+    #         if dt >= s.tick.period
+    #             s.tick.count = 0;
+    #             s.tick.time = tims;
+    #             if s.tick.state > (1.0 / s.tick.period)
+    #                 s.tick.freq = (1 - s.tick.alpha) * s.tick.freq + s.tick.alpha * freq;
+    #             else
+    #                 s.tick.freq = freq;
+    #                 s.tick.state = s.tick.state + 1;
+    #             end
+    #         end
+    #     end
+    #     freq = round(s.tick.freq);
+    #     msc = fix((tims - fix(tims)) * 1000 + 1e-5);
+    #     sec = mod(fix(tims), 60);
+    #     min = fix(fix(tims) / 60);
+    #     varargout = {freq, [tims, min, sec, msc], caltype};
+    # end
+
+    # TODO
+    # getPacketLostRate
+
+    # % [rate, lost, dc] = s.getLostRate();       ->  check lost packet
+    # function varargout = getPacketLostRate( s, varargin )
+    #     if (s.tick.timeunit == 0) || (s.tick.timeunit >= size(s.ks.data, 1))
+    #         % use parameter bytes to check lost packet
+    #         caltype = 'parameter';
+    #         count = zeros(1, s.ks.lens);
+    #         for i = 1 : s.ks.lens
+    #             count(i) = s.getParameter(i, 'uint16');
+    #         end
+    #         dc = count(2:end) - count(1:end-1);
+    #         dc(dc < 0) = dc(dc < 0) + 65536;
+    #         lost = size(find(dc ~= 1), 2);
+    #     else
+    #         % use packet sec/msc to check lost packet
+    #         caltype = 'packet';
+    #         tc = fix(s.ks.data(s.tick.timeindex(1), :) / s.tick.timeunit) + s.ks.data(s.tick.timeindex(2), :);
+    #         dc = tc(2 : end) - tc(1 : end - 1);
+    #         res = find(dc > round(1000 / s.tick.freq));
+    #         lost = size(res, 2);
+    #     end
+    #     rate = lost / (s.ks.lens - 1);
+    #     varargout = { rate, lost, dc, caltype};
+    # end
+
     # pkinfo, pkdata, pkcount = ks.command(param, ktype, ack, second)
     def command(self, param = [], ktype = 'R0', ack = False, second = 0.05):
         pkinfo, pkdata = self.pack(param, ktype)
@@ -330,11 +409,13 @@ class kSerial:
         return deviceid
 
     # TODO
+    # ks.set_baudrate(115200)
     # def set_baudrate(self, baudrate = 115200):
     #     pkinfo, pkdata, pkcount = self.command([self.KSCMD_R0_DEVICE_BAUDRATE, mode], 'R0', False)
     #     return pkinfo, pkdata, pkcount
 
     # TODO
+    # ks.set_rate(100)
     # def set_rate(self, rate = 100):
     #     pkinfo, pkdata, pkcount = self.command([self.KSCMD_R0_DEVICE_RATE, mode], 'R0', False)
     #     return pkinfo, pkdata, pkcount
@@ -345,6 +426,10 @@ class kSerial:
         return pkinfo, pkdata, pkcount
 
     # TODO
+    # deviceid   = ks.get_value(self.KSCMD_R0_DEVICE_ID)
+    # baudrate   = ks.get_value(self.KSCMD_R0_DEVICE_BAUDRATE)
+    # updaterate = ks.get_value(self.KSCMD_R0_DEVICE_RATE)
+    # devicemode = ks.get_value(self.KSCMD_R0_DEVICE_MDOE)
     # def get_value(self, item = 0, second = 0.05)):
     #     pkinfo, pkdata, pkcount = self.command([self.KSCMD_R0_DEVICE_GET, item], 'R0', True)
     #     return pkinfo, pkdata, pkcount

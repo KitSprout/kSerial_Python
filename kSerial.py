@@ -5,9 +5,9 @@
 #    /_/|_|/_/ \__//___// .__//_/   \___/\_,_/ \__/  
 #                      /_/   github.com/KitSprout    
 #   
-#   @file    kSerial.py
+#   @file    kserial.py
 #   @author  KitSprout
-#   @brief   kSerial packet format :
+#   @brief   kserial packet format :
 #            byte 1   : header 'K' (75)       [HK]
 #            byte 2   : header 'S' (83)       [HS]
 #            byte 3   : data type (4-bit)     [TP]
@@ -24,7 +24,7 @@ import struct
 import serial
 import numpy as np
 
-class kSerial:
+class kserial:
 
     typesize = {
         'uint8'  :  1, 'uint16' :  2, 'uint32' :  4, 'uint64' :  8,

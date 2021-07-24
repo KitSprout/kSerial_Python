@@ -1,6 +1,6 @@
-from kSerial import kSerial
+from kserial import kserial
 
-ks = kSerial('COM16', 115200)
+ks = kserial('COM3', 115200)
 ks.open()
 
 # device id check

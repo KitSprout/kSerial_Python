@@ -9,8 +9,8 @@ def i2cdevice(ks):
 
 def continuous(ks):
     # mode
-    ks.target_mode(1)
     ks.target_rate(100)
+    ks.target_mode(1)
     # continuous read
     total = 0
     while total < 50:
@@ -29,7 +29,8 @@ def continuous(ks):
 
 
 # main process
-ks = kserial('COM3', 115200)
+default_baudrate = 115200
+ks = kserial('COM3', default_baudrate)
 ks.open()
 
 # device id

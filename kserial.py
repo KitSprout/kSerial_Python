@@ -350,26 +350,36 @@ class kserial:
 
     # baudrate = ks.target_baudrate()
     # ks.target_baudrate(115200)
-    def target_baudrate(self, baudrate = -1):
+    # ks.target_baudrate(115200, True)
+    def target_baudrate(self, baudrate = -1, resetting = False):
         if baudrate < 0:
             return self.target_get(self.KSCMD_R0_DEVICE_BAUDRATE)
         pkinfo, pkdata, pkcount = self.send([self.KSCMD_R0_DEVICE_BAUDRATE, 4], 'R0', struct.pack('I', int(baudrate)))
+        # resetting baudrate
+        if resetting == True:
+            self.close()
+            self.baudrate = baudrate
+            self.delay(0.1)
+            self.open()
+        self.delay(0.1)
         return pkinfo, pkdata, pkcount
 
     # rate = ks.target_rate()
     # ks.target_rate(100)
-    def target_rate(self, rate = -1):
+    def target_rate(self, rate = -1, second = 0):
         if rate < 0:
             return self.target_get(self.KSCMD_R0_DEVICE_RATE)
         pkinfo, pkdata, pkcount = self.send([self.KSCMD_R0_DEVICE_RATE, 4], 'R0', struct.pack('I', int(rate)))
+        self.delay(second)
         return pkinfo, pkdata, pkcount
 
     # mode = ks.target_mode()
     # ks.target_mode(mode)
-    def target_mode(self, mode = -1):
+    def target_mode(self, mode = -1, second = 0):
         if mode < 0:
             return self.target_get(self.KSCMD_R0_DEVICE_MDOE)
         pkinfo, pkdata, pkcount = self.command([self.KSCMD_R0_DEVICE_MDOE, mode], 'R0', False)
+        self.delay(second)
         return pkinfo, pkdata, pkcount
 
     # deviceid = ks.target_get(self.KSCMD_R0_DEVICE_ID)

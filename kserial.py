@@ -452,7 +452,7 @@ class kserial:
         self.write(pkdata)
         return pkdata
 
-    # device = ks.i2c_scan(show, second)
+    # address = ks.i2c_scan(show, second)
     def i2c_scan(self, show = False, second = 0.05):
         pkinfo, pkdata = self.pack([self.KSCMD_R2_TWI_SCAN_DEVICE, 0], 'R2')
         self.clear()
@@ -465,13 +465,14 @@ class kserial:
         if self.KSCMD_R2_TWI_SCAN_DEVICE != pkinfo[2][0]:
             print('  >> i2c secn device error ... wrong format\n')
             return [0xFF]
-        dev = pkdata[0]
+        address = pkdata[0]
         if show:
-            s = f'  >> found {pkcount} device ...'
-            for i in range(pkcount):
-                s += f' {dev[i]:02X}'
+            devnum = len(address)
+            s = f'  >> found {devnum} device ...'
+            for i in range(devnum):
+                s += f' {address[i]:02X}'
             print(s)
-        return dev
+        return address
 
     # reg = ks.i2c_register(address, show, second)
     def i2c_register(self, address, show = False, second = 0.1):

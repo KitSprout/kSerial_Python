@@ -455,3 +455,8 @@ class kserial:
                 s += f' {reg[i+8]:02X} {reg[i+9]:02X} {reg[i+10]:02X} {reg[i+11]:02X} {reg[i+12]:02X} {reg[i+13]:02X} {reg[i+14]:02X} {reg[i+15]:02X}\n'
             print(s)
         return reg
+
+# test
+if __name__ == '__main__':
+    # TODO: test
+    print('run kserial')

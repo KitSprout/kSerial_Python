@@ -21,6 +21,8 @@
 
 import time
 import struct
+import sys
+import glob
 import serial
 import numpy as np
 
@@ -71,9 +73,17 @@ class kserial:
     KSCMD_R2_TWI_SCAN_DEVICE    = 0xA1
     KSCMD_R2_TWI_SCAN_REGISTER  = 0xA2
 
-    def __init__(self, port="COM3", baudrate=115200):
+    def __init__(self, port="", baudrate=115200):
         self.s = serial.Serial()
-        self.port = port
+        if len(port) == 0:
+            portlist = self.get_portlist()
+            if len(portlist) > 0:
+                self.port = portlist[0]
+            else:
+                print('not available com port')
+                self.port = "COM0"
+        else:
+            self.port = port
         self.baudrate = baudrate
         self.buf = bytes()
         self.runtime = 0
@@ -101,6 +111,26 @@ class kserial:
 
     def read(self, lens):
         return self.s.read(lens)
+
+    def get_portlist(self):
+        if sys.platform.startswith('win'):
+            ports = ['COM%s' % (i + 1) for i in range(256)]
+        elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+            # this excludes your current terminal "/dev/tty"
+            ports = glob.glob('/dev/tty[A-Za-z]*')
+        elif sys.platform.startswith('darwin'):
+            ports = glob.glob('/dev/tty.*')
+        else:
+            raise EnvironmentError('Unsupported platform')
+        portlist = []
+        for port in ports:
+            try:
+                s = serial.Serial(port)
+                s.close()
+                portlist.append(port)
+            except (OSError, serial.SerialException):
+                pass
+        return portlist
 
     def find(self, packet, val):
         return [i for i, v in enumerate(packet) if v == val]
@@ -456,7 +486,74 @@ class kserial:
             print(s)
         return reg
 
+    # Need to install pyqtgraph and PySide6
+    # pip install pyqtgraph
+    # pip install PySide6
+    class oscilloscope():
+        import pyqtgraph as pg
+        from pyqtgraph.Qt import QtGui, QtCore
+        def __init__(self, kserial, width=800, ylim=[-1, 1]):
+            self.ks = kserial
+            self.app = self.pg.mkQApp('kSerial')
+            # self.pg.setConfigOption('background', 'w')
+            # self.pg.setConfigOption('foreground', 'k')
+            self.plt = self.pg.plot()
+            self.plt.showGrid(x=True, y=True, alpha=0.2)
+            # self.plt.addLegend()
+            # self.plt.enableAutoRange()
+            self.plt.setWindowTitle('kSerial Oscilloscope')
+            self.plt.setRange(self.QtCore.QRectF(0, ylim[0], width, ylim[1] - ylim[0])) 
+            self.plt.setLabel('bottom', 'Index', units='B')
+            self.fps = None
+            self.ts = self.pg.ptime.time()
+            self.width = width
+            self.height = ylim
+            self.num = 3
+            self.data = np.zeros([self.num, self.width])
+            self.curve = []
+            self.pen = [
+                self.pg.mkPen('r', name='x-axis'),
+                self.pg.mkPen('g', name='y-axis'),
+                self.pg.mkPen('b', name='z-axis')]
+        def getfps(self):
+            now = self.pg.ptime.time()
+            dt = now - self.ts
+            self.ts = now
+            if self.fps is None:
+                self.fps = 1.0 / dt
+            else:
+                s = np.clip(dt*3., 0, 1)
+                self.fps = self.fps * (1-s) + (1.0/dt) * s
+            return self.fps
+        def update(self):
+            pkinfo, pkdata, pkcount, pkdt = self.ks.continuous()
+            if pkcount != 0:
+                self.plt.setTitle(f'{self.getfps():0.2f} fps ax: {self.data[0][-1]:9.5f} ay: {self.data[1][-1]:9.5f} az: {self.data[2][-1]:9.5f}')
+                for i in range(self.num):
+                    self.data[i][:-1] = self.data[i][1:]
+                    self.data[i][-1] = pkdata[-1][5+i] / 8192.0 * 9.8
+                    self.curve[i].setData(self.data[i])
+                self.app.processEvents()
+        def run(self):
+            for i in range(self.num):
+                self.curve.append(self.plt.plot(pen=self.pen[i]))
+            self.ks.target_mode(1)
+            timer = self.QtCore.QTimer()
+            timer.timeout.connect(self.update)
+            timer.start(0)
+            self.pg.exec()
+            self.ks.target_mode(0)
+
 # test
 if __name__ == '__main__':
-    # TODO: test
-    print('run kserial')
+    print('')
+    print('---- kserial test start ----')
+    ks = kserial(baudrate=115200)
+    ks.open()
+    # check connection
+    deviceid = ks.check()
+    print(f'>> device check: {deviceid:X}')
+    ksosc = ks.oscilloscope(ks, ylim=[-40,40])
+    ksosc.run()
+    print('---- kserial test stop  ----')
+    ks.close()

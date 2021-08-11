@@ -491,58 +491,84 @@ class kserial:
     # pip install PySide6
     class oscilloscope():
         import pyqtgraph as pg
-        from pyqtgraph.Qt import QtGui, QtCore
-        def __init__(self, kserial, width=800, ylim=[-1, 1]):
+        from pyqtgraph.Qt import QtCore
+        class style():
+            def __init__(self, index, color='', scale=1.0, text=''):
+                self.index = index
+                self.color = color
+                self.scale = scale
+                self.text = text
+        def __init__(self, kserial, posx=100, posy=100, width=640, height=360):
             self.ks = kserial
             self.app = self.pg.mkQApp('kSerial')
-            # self.pg.setConfigOption('background', 'w')
-            # self.pg.setConfigOption('foreground', 'k')
             self.plt = self.pg.plot()
-            self.plt.showGrid(x=True, y=True, alpha=0.2)
-            # self.plt.addLegend()
-            # self.plt.enableAutoRange()
             self.plt.setWindowTitle('kSerial Oscilloscope')
-            self.plt.setRange(self.QtCore.QRectF(0, ylim[0], width, ylim[1] - ylim[0])) 
-            self.plt.setLabel('bottom', 'Index', units='B')
-            self.fps = None
-            self.ts = self.pg.ptime.time()
-            self.width = width
-            self.height = ylim
-            self.num = 3
-            self.data = np.zeros([self.num, self.width])
-            self.curve = []
-            self.pen = [
-                self.pg.mkPen('r', name='x-axis'),
-                self.pg.mkPen('g', name='y-axis'),
-                self.pg.mkPen('b', name='z-axis')]
-        def getfps(self):
-            now = self.pg.ptime.time()
-            dt = now - self.ts
-            self.ts = now
-            if self.fps is None:
-                self.fps = 1.0 / dt
-            else:
-                s = np.clip(dt*3., 0, 1)
-                self.fps = self.fps * (1-s) + (1.0/dt) * s
-            return self.fps
+            self.plt.setGeometry(posx, posy, width, height)
+            self.plt.showGrid(x=True, y=True, alpha=0.2)
+            self.plt.enableAutoRange()
+            self.ts = 0
         def update(self):
             pkinfo, pkdata, pkcount, pkdt = self.ks.continuous()
             if pkcount != 0:
-                self.plt.setTitle(f'{self.getfps():0.2f} fps ax: {self.data[0][-1]:9.5f} ay: {self.data[1][-1]:9.5f} az: {self.data[2][-1]:9.5f}')
+                # record data
+                # TODO: save all recv data
+                # len(pkcount)
                 for i in range(self.num):
-                    self.data[i][:-1] = self.data[i][1:]
-                    self.data[i][-1] = pkdata[-1][5+i] / 8192.0 * 9.8
-                    self.curve[i].setData(self.data[i])
+                    self.raw[i][:-1] = self.raw[i][1:]
+                    self.raw[i][-1] = pkdata[-1][i]
+                # update curve
+                text = ''
+                for i in range(len(self.index)):
+                    curvedata = self.raw[self.index[i]] * self.scale[i]
+                    self.curve[i].setData(curvedata)
+                    text += f' {self.curvetext[i]}: {curvedata[-1]: 10.4f}'
+                # TODO: setPos()
+                # udpate title
+                tt = time.time()
+                dt = tt - self.ts
+                if dt > 0.05:
+                    self.ts = tt
+                    self.plt.setTitle(text)
+                # update
                 self.app.processEvents()
-        def run(self):
-            for i in range(self.num):
-                self.curve.append(self.plt.plot(pen=self.pen[i]))
+        def run(self, xlabel='samples', ylabel='', width=800, yrange=[], style=[style(0)]):
+            self.plt.setLabel('bottom', xlabel)
+            self.plt.setLabel('left', ylabel)
+            if len(yrange) == 2:
+                self.plt.setRange(xRange=[0, width], yRange=yrange)
+            self.width = width
+            # get packet size
             self.ks.target_mode(1)
+            timeout, pkcount = 0, 0
+            while pkcount == 0 and timeout < 5.0:
+                pkinfo, pkdata, pkcount, pkdt = self.ks.continuous()
+                timeout += 0.01
+                time.sleep(0.01)
+            # create buffer
+            self.num = len(pkdata[0])
+            self.raw = np.zeros([self.num, self.width])
+            # create curve
+            self.index = []
+            self.pen = []
+            self.curve = []
+            self.scale = []
+            self.curvetext = []
+            for i in range(len(style)):
+                self.index.append(style[i].index)
+                self.pen.append(self.pg.mkPen(style[i].color, name=style[i].text))
+                self.curve.append(self.plt.plot(pen=self.pen[i]))
+                self.scale.append(style[i].scale)
+                self.curvetext.append(style[i].text)
+            # continuous mode
+            self.ks.target_mode(1)
+            # set timer and start
             timer = self.QtCore.QTimer()
             timer.timeout.connect(self.update)
             timer.start(0)
             self.pg.exec()
+            # self.pg.show()
             self.ks.target_mode(0)
+            return self.raw
 
 # test
 if __name__ == '__main__':
@@ -553,7 +579,17 @@ if __name__ == '__main__':
     # check connection
     deviceid = ks.check()
     print(f'>> device check: {deviceid:X}')
-    ksosc = ks.oscilloscope(ks, ylim=[-40,40])
-    ksosc.run()
+    ksosc = ks.oscilloscope(ks)
+    raw = ksosc.run(
+        xlabel='samples',
+        ylabel='m/s^2',
+        yrange=[-40, 40],
+        style=[
+            ksosc.style(index=5, color='r', scale=9.81/8192, text='ax'),
+            ksosc.style(index=6, color='g', scale=9.81/8192, text='ay'),
+            ksosc.style(index=7, color='b', scale=9.81/8192, text='az')
+        ]
+    )
+    # time.sleep(5)
     print('---- kserial test stop  ----')
     ks.close()

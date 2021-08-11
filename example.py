@@ -41,7 +41,16 @@ print(f'  >> device check: {deviceid:X}')
 i2cdevice(ks)
 continuous(ks)
 
-ksosc = ks.oscilloscope(ks, ylim=[-40,40])
-ksosc.run()
+ksosc = ks.oscilloscope(ks)
+raw = ksosc.run(
+    # xlabel='samples',
+    # ylabel='m/s^2',
+    # yrange=[-40, 40],
+    style=[
+        ksosc.style(index=5, color='r', scale=9.81/8192, text='ax'),
+        ksosc.style(index=6, color='g', scale=9.81/8192, text='ay'),
+        ksosc.style(index=7, color='b', scale=9.81/8192, text='az')
+    ]
+)
 
 ks.close()
